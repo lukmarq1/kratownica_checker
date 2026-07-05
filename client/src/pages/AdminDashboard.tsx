@@ -198,7 +198,13 @@ export default function AdminDashboard() {
                           )}
                         </td>
                         <td className="py-3 px-3 text-slate-400">
-                          {new Date(attempt.attemptedAt).toLocaleString("pl-PL")}
+                          {attempt.createdAt ? new Date(attempt.createdAt).toLocaleString("pl-PL", { 
+  day: '2-digit', 
+  month: '2-digit', 
+  year: 'numeric', 
+  hour: '2-digit', 
+  minute: '2-digit' 
+}) : "Brak daty"}
                         </td>
                         <td className="py-3 px-3">
                           <UnlockButton ipAddress={attempt.ipAddress} />
