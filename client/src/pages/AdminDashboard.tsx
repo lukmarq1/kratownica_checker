@@ -45,6 +45,11 @@ export default function AdminDashboard() {
     { enabled: pinVerified }
   );
 
+  // 🔥 NOWE zapytanie o zablokowane IP
+  const lockedIPsQuery = trpc.admin.getLockedIPs.useQuery(undefined, {
+    enabled: pinVerified,
+  });
+
   if (!pinVerified) {
     return <AdminLogin onLoginSuccess={() => setPinVerified(true)} />;
   }
@@ -66,6 +71,7 @@ export default function AdminDashboard() {
 
   const successRate = stats.totalAttempts > 0 ? Math.round((stats.successfulAttempts / stats.totalAttempts) * 100) : 0;
   const attempts = attemptsQuery.data || [];
+  const lockedIPs = lockedIPsQuery.data || [];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 p-4">
@@ -159,6 +165,30 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
+        {/* 🔥 NOWY KAFELEK – Zablokowane IP */}
+        <Card className="bg-slate-800 border-slate-700 mb-8">
+          <div className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Lock className="w-5 h-5 text-orange-400" />
+              <h2 className="text-xl font-bold text-white font-mono">Zablokowane IP</h2>
+            </div>
+            {lockedIPsQuery.isLoading ? (
+              <p className="text-slate-400 font-mono">Ładowanie...</p>
+            ) : lockedIPs.length > 0 ? (
+              <div className="flex flex-wrap gap-3">
+                {lockedIPs.map((ip) => (
+                  <div key={ip} className="bg-slate-700/50 rounded p-3 border border-orange-500 flex items-center gap-3">
+                    <span className="text-orange-400 font-mono font-bold">{ip}</span>
+                    <UnlockButton ipAddress={ip} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-slate-400 font-mono">Brak zablokowanych IP</p>
+            )}
+          </div>
+        </Card>
+
         {/* Attempts Table */}
         <Card className="bg-slate-800 border-slate-700">
           <div className="p-6">
@@ -188,23 +218,23 @@ export default function AdminDashboard() {
                         <td className="py-3 px-3 text-slate-300">{attempt.angle}°</td>
                         <td className="py-3 px-3">
                           {attempt.isCorrect === 1 ? (
-  <span className="text-green-400 flex items-center gap-1">
-    <CheckCircle2 className="w-4 h-4" /> OK
-  </span>
-) : (
-  <span className="text-red-400 flex items-center gap-1">
-    <XCircle className="w-4 h-4" /> FAIL
-  </span>
-)}
+                            <span className="text-green-400 flex items-center gap-1">
+                              <CheckCircle2 className="w-4 h-4" /> OK
+                            </span>
+                          ) : (
+                            <span className="text-red-400 flex items-center gap-1">
+                              <XCircle className="w-4 h-4" /> FAIL
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 px-3 text-slate-400">
                           {attempt.createdAt ? new Date(attempt.createdAt).toLocaleString("pl-PL", { 
-  day: '2-digit', 
-  month: '2-digit', 
-  year: 'numeric', 
-  hour: '2-digit', 
-  minute: '2-digit' 
-}) : "Brak daty"}
+                            day: '2-digit', 
+                            month: '2-digit', 
+                            year: 'numeric', 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          }) : "Brak daty"}
                         </td>
                         <td className="py-3 px-3">
                           <UnlockButton ipAddress={attempt.ipAddress} />
