@@ -45,7 +45,6 @@ export default function AdminDashboard() {
     { enabled: pinVerified }
   );
 
-  // 🔥 NOWE zapytanie o zablokowane IP
   const lockedIPsQuery = trpc.admin.getLockedIPs.useQuery(undefined, {
     enabled: pinVerified,
   });
@@ -165,7 +164,7 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* 🔥 NOWY KAFELEK – Zablokowane IP */}
+        {/* Locked IPs List */}
         <Card className="bg-slate-800 border-slate-700 mb-8">
           <div className="p-6">
             <div className="flex items-center gap-2 mb-4">
@@ -212,35 +211,51 @@ export default function AdminDashboard() {
                       </td>
                     </tr>
                   ) : (
-                    attempts.map((attempt: any, idx: number) => (
-                      <tr key={idx} className="border-b border-slate-700 hover:bg-slate-700/50">
-                        <td className="py-3 px-3 text-slate-300">{attempt.ipAddress}</td>
-                        <td className="py-3 px-3 text-slate-300">{attempt.angle}°</td>
-                        <td className="py-3 px-3">
-                          {attempt.isCorrect === 1 ? (
-                            <span className="text-green-400 flex items-center gap-1">
-                              <CheckCircle2 className="w-4 h-4" /> OK
-                            </span>
-                          ) : (
-                            <span className="text-red-400 flex items-center gap-1">
-                              <XCircle className="w-4 h-4" /> FAIL
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-slate-400">
-                          {attempt.createdAt ? new Date(attempt.createdAt).toLocaleString("pl-PL", { 
-                            day: '2-digit', 
-                            month: '2-digit', 
-                            year: 'numeric', 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          }) : "Brak daty"}
-                        </td>
-                        <td className="py-3 px-3">
-                          <UnlockButton ipAddress={attempt.ipAddress} />
-                        </td>
-                      </tr>
-                    ))
+                    attempts.map((attempt: any, idx: number) => {
+                      const isLocked = lockedIPs.includes(attempt.ipAddress);
+                      return (
+                        <tr 
+                          key={idx} 
+                          className={`border-b border-slate-700 hover:bg-slate-700/50 ${
+                            isLocked ? 'bg-red-900/30 border-l-4 border-l-red-500' : ''
+                          }`}
+                        >
+                          <td className="py-3 px-3 text-slate-300">
+                            {isLocked ? (
+                              <span className="text-red-400 font-bold flex items-center gap-1">
+                                🔒 {attempt.ipAddress}
+                              </span>
+                            ) : (
+                              attempt.ipAddress
+                            )}
+                          </td>
+                          <td className="py-3 px-3 text-slate-300">{attempt.angle}°</td>
+                          <td className="py-3 px-3">
+                            {attempt.isCorrect === 1 ? (
+                              <span className="text-green-400 flex items-center gap-1">
+                                <CheckCircle2 className="w-4 h-4" /> OK
+                              </span>
+                            ) : (
+                              <span className="text-red-400 flex items-center gap-1">
+                                <XCircle className="w-4 h-4" /> FAIL
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 text-slate-400">
+                            {attempt.createdAt ? new Date(attempt.createdAt).toLocaleString("pl-PL", { 
+                              day: '2-digit', 
+                              month: '2-digit', 
+                              year: 'numeric', 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            }) : "Brak daty"}
+                          </td>
+                          <td className="py-3 px-3">
+                            <UnlockButton ipAddress={attempt.ipAddress} />
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
