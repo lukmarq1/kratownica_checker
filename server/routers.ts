@@ -23,6 +23,8 @@ import {
   getUserProfileWithTracking,
   exportAttemptDataAsCSV,
 } from "./dbEnhanced";
+// 🔥 DODANY IMPORT TABELI
+import { angleAttempts } from "../drizzle/schema";
 
 export const appRouter = router({
   system: systemRouter,
@@ -170,6 +172,7 @@ export const appRouter = router({
         return { success: isValid };
       }),
 
+    // 🔥 POPRAWIONY ENDPOINT – z importem angleAttempts
     getLockedIPs: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
