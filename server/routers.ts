@@ -23,8 +23,9 @@ import {
   getUserProfileWithTracking,
   exportAttemptDataAsCSV,
 } from "./dbEnhanced";
-// 🔥 DODANY IMPORT TABELI
 import { angleAttempts } from "../drizzle/schema";
+// 🔥 Import funkcji do pobierania geolokalizacji
+import { fetchGeolocation } from "./dbEnhanced";
 
 export const appRouter = router({
   system: systemRouter,
@@ -98,23 +99,51 @@ export const appRouter = router({
           input.angle >= correctAngle - tolerance &&
           input.angle <= correctAngle + tolerance;
 
+        // 🔥 Pobieramy dane geolokalizacyjne dla IP
+        let geoData = null;
+        if (ipAddress && ipAddress !== "unknown") {
+          try {
+            geoData = await fetchGeolocation(ipAddress);
+          } catch (e) {
+            console.error("[Geolocation] Error fetching geo data:", e);
+          }
+        }
+
+        const userAgent = ctx.req.headers["user-agent"] || "unknown";
+        const record = await getOrCreateAttemptRecord(ipAddress);
+        const attemptNumber = (record.failedAttempts || 0) + 1;
+
         if (isCorrect) {
           await resetAttempts(ipAddress);
-          const record = await getOrCreateAttemptRecord(ipAddress);
-          const userAgent = ctx.req.headers["user-agent"] || "unknown";
-          await recordAttemptHistory(ipAddress, input.angle, true, (record.failedAttempts || 0) + 1, userAgent);
-          await recordAttemptWithTracking(ipAddress, input.angle, true, (record.failedAttempts || 0) + 1, userAgent).catch(err => console.error("[Tracking] Error:", err));
+          await recordAttemptHistory(
+            ipAddress,
+            input.angle,
+            true,
+            attemptNumber,
+            userAgent,
+            geoData || undefined
+          );
+          await recordAttemptWithTracking(ipAddress, input.angle, true, attemptNumber, userAgent).catch(err =>
+            console.error("[Tracking] Error:", err)
+          );
           return {
             success: true,
             reason: "correct",
             angle: input.angle,
           };
         } else {
-          const record = await getOrCreateAttemptRecord(ipAddress);
           const result = await recordFailedAttempt(ipAddress);
-          const userAgent = ctx.req.headers["user-agent"] || "unknown";
-          await recordAttemptHistory(ipAddress, input.angle, false, (record.failedAttempts || 0) + 1, userAgent);
-          await recordAttemptWithTracking(ipAddress, input.angle, false, (record.failedAttempts || 0) + 1, userAgent).catch(err => console.error("[Tracking] Error:", err));
+          await recordAttemptHistory(
+            ipAddress,
+            input.angle,
+            false,
+            attemptNumber,
+            userAgent,
+            geoData || undefined
+          );
+          await recordAttemptWithTracking(ipAddress, input.angle, false, attemptNumber, userAgent).catch(err =>
+            console.error("[Tracking] Error:", err)
+          );
           return {
             success: false,
             reason: "incorrect",
@@ -172,7 +201,6 @@ export const appRouter = router({
         return { success: isValid };
       }),
 
-    // 🔥 POPRAWIONY ENDPOINT – z importem angleAttempts
     getLockedIPs: publicProcedure.query(async () => {
       const db = await getDb();
       if (!db) return [];
