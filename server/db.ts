@@ -1,0 +1,330 @@
+import { eq, desc } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/mysql2";
+import { InsertUser, users, angleAttempts, attemptHistory } from "../drizzle/schema";
+import { ENV } from './_core/env';
+
+let _db: ReturnType<typeof drizzle> | null = null;
+
+// Lazily create the drizzle instance so local tooling can run without a DB.
+export async function getDb() {
+  if (!_db && process.env.DATABASE_URL) {
+    try {
+      _db = drizzle(process.env.DATABASE_URL);
+    } catch (error) {
+      console.warn("[Database] Failed to connect:", error);
+      _db = null;
+    }
+  }
+  return _db;
+}
+
+export async function upsertUser(user: InsertUser): Promise<void> {
+  if (!user.openId) {
+    throw new Error("User openId is required for upsert");
+  }
+
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot upsert user: database not available");
+    return;
+  }
+
+  try {
+    const values: InsertUser = {
+      openId: user.openId,
+    };
+    const updateSet: Record<string, unknown> = {};
+
+    const textFields = ["name", "email", "loginMethod"] as const;
+    type TextField = (typeof textFields)[number];
+
+    const assignNullable = (field: TextField) => {
+      const value = user[field];
+      if (value === undefined) return;
+      const normalized = value ?? null;
+      values[field] = normalized;
+      updateSet[field] = normalized;
+    };
+
+    textFields.forEach(assignNullable);
+
+    if (user.lastSignedIn !== undefined) {
+      values.lastSignedIn = user.lastSignedIn;
+      updateSet.lastSignedIn = user.lastSignedIn;
+    }
+    if (user.role !== undefined) {
+      values.role = user.role;
+      updateSet.role = user.role;
+    } else if (user.openId === ENV.ownerOpenId) {
+      values.role = 'admin';
+      updateSet.role = 'admin';
+    }
+
+    if (!values.lastSignedIn) {
+      values.lastSignedIn = new Date();
+    }
+
+    if (Object.keys(updateSet).length === 0) {
+      updateSet.lastSignedIn = new Date();
+    }
+
+    await db.insert(users).values(values).onDuplicateKeyUpdate({
+      set: updateSet,
+    });
+  } catch (error) {
+    console.error("[Database] Failed to upsert user:", error);
+    throw error;
+  }
+}
+
+export async function getUserByOpenId(openId: string) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user: database not available");
+    return undefined;
+  }
+
+  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/**
+ * Get or create an IP attempt record.
+ */
+export async function getOrCreateAttemptRecord(ipAddress: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const existing = await db
+    .select()
+    .from(angleAttempts)
+    .where(eq(angleAttempts.ipAddress, ipAddress))
+    .limit(1);
+
+  if (existing.length > 0) {
+    return existing[0];
+  }
+
+  // Create new record
+  await db.insert(angleAttempts).values({
+    ipAddress,
+    failedAttempts: 0,
+  });
+
+  const created = await db
+    .select()
+    .from(angleAttempts)
+    .where(eq(angleAttempts.ipAddress, ipAddress))
+    .limit(1);
+
+  return created[0];
+}
+
+/**
+ * Check if IP is currently locked out.
+ */
+export async function isIpLocked(ipAddress: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  const record = await db
+    .select()
+    .from(angleAttempts)
+    .where(eq(angleAttempts.ipAddress, ipAddress))
+    .limit(1);
+
+  if (!record.length) return false;
+
+  const attempt = record[0];
+  if (!attempt.lockedUntil) return false;
+
+  // Check if lockout has expired
+  const now = new Date();
+  if (now > attempt.lockedUntil) {
+    // Unlock by clearing the lockout
+    await db
+      .update(angleAttempts)
+      .set({ lockedUntil: null, failedAttempts: 0 })
+      .where(eq(angleAttempts.ipAddress, ipAddress));
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Get remaining lockout time in milliseconds.
+ */
+export async function getRemainingLockoutTime(ipAddress: string): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  const record = await db
+    .select()
+    .from(angleAttempts)
+    .where(eq(angleAttempts.ipAddress, ipAddress))
+    .limit(1);
+
+  if (!record.length || !record[0].lockedUntil) return 0;
+
+  const now = new Date();
+  const remaining = record[0].lockedUntil.getTime() - now.getTime();
+  return Math.max(0, remaining);
+}
+
+/**
+ * Record a failed attempt and check if lockout should be triggered.
+ */
+export async function recordFailedAttempt(ipAddress: string): Promise<{
+  isLocked: boolean;
+  remainingAttempts: number;
+  lockedUntil?: Date | null;
+}> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const record = await getOrCreateAttemptRecord(ipAddress);
+  const newFailedCount = (record.failedAttempts || 0) + 1;
+
+  let lockedUntil: Date | null = null;
+  if (newFailedCount >= 2) {
+    // Lock for 24 hours
+    lockedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  }
+
+  await db
+    .update(angleAttempts)
+    .set({
+      failedAttempts: newFailedCount,
+      lastAttemptAt: new Date(),
+      lockedUntil,
+    })
+    .where(eq(angleAttempts.ipAddress, ipAddress));
+
+  return {
+    isLocked: newFailedCount >= 2,
+    remainingAttempts: Math.max(0, 2 - newFailedCount),
+    lockedUntil: lockedUntil || undefined,
+  };
+}
+
+/**
+ * Reset attempts for an IP (on successful verification).
+ */
+export async function resetAttempts(ipAddress: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db
+    .update(angleAttempts)
+    .set({
+      failedAttempts: 0,
+      lockedUntil: null,
+      lastAttemptAt: new Date(),
+    })
+    .where(eq(angleAttempts.ipAddress, ipAddress));
+}
+
+/**
+ * Manually unlock an IP address (admin only).
+ */
+export async function unlockIp(ipAddress: string): Promise<void> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[unlockIp] Database not available");
+    return;
+  }
+
+  try {
+    await db
+      .update(angleAttempts)
+      .set({
+        failedAttempts: 0,
+        lockedUntil: null,
+        lastAttemptAt: new Date(),
+      })
+      .where(eq(angleAttempts.ipAddress, ipAddress));
+    console.log(`[unlockIp] IP ${ipAddress} unlocked successfully`);
+  } catch (error) {
+    console.error("[unlockIp] Error unlocking IP:", error);
+    throw error;
+  }
+}
+
+/**
+ * Record an attempt in history for admin tracking.
+ */
+export async function recordAttemptHistory(
+  ipAddress: string,
+  angle: number,
+  isCorrect: boolean,
+  attemptNumber: number,
+  userAgent?: string
+): Promise<void> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[recordAttemptHistory] Database not available");
+    return;
+  }
+
+  try {
+    await db.insert(attemptHistory).values({
+      ipAddress,
+      angle: angle.toString(),
+      isCorrect: isCorrect ? 1 : 0,
+      attemptNumber,
+      userAgent: userAgent || "unknown",
+    });
+  } catch (error) {
+    console.error("[recordAttemptHistory] Error recording attempt:", error);
+  }
+}
+
+/**
+ * Get all attempts for admin dashboard.
+ */
+export async function getAllAttempts(limit: number = 100, offset: number = 0) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(attemptHistory)
+    .orderBy(desc(attemptHistory.createdAt))
+    .limit(limit)
+    .offset(offset);
+}
+
+/**
+ * Get admin statistics.
+ */
+export async function getAdminStats() {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    const allAttempts = await db.select().from(attemptHistory).catch(() => []);
+    const uniqueIps = new Set(allAttempts.map((a) => a.ipAddress));
+    const successfulAttempts = allAttempts.filter((a) => a.isCorrect === 1).length;
+    const lockedRecords = await db.select().from(angleAttempts).catch(() => []);
+    const currentlyLockedIps = lockedRecords.filter((r) => r.lockedUntil && r.lockedUntil > new Date()).length;
+
+    return {
+      totalAttempts: allAttempts.length,
+      uniqueIps: uniqueIps.size,
+      successfulAttempts,
+      failedAttempts: allAttempts.length - successfulAttempts,
+      currentlyLockedIps,
+    };
+  } catch (error) {
+    console.error("[Admin Stats] Error:", error);
+    return {
+      totalAttempts: 0,
+      uniqueIps: 0,
+      successfulAttempts: 0,
+      failedAttempts: 0,
+      currentlyLockedIps: 0,
+    };
+  }
+}
