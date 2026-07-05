@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
-import { BarChart3, Lock, Users, CheckCircle2, XCircle, ArrowLeft, LogOut } from "lucide-react";
+import { BarChart3, Lock, Users, CheckCircle2, XCircle, ArrowLeft, LogOut, MapPin, Info } from "lucide-react";
 import { useLocation } from "wouter";
 import AdminLogin from "./AdminLogin";
 
@@ -72,6 +72,24 @@ export default function AdminDashboard() {
   const attempts = attemptsQuery.data || [];
   const lockedIPs = lockedIPsQuery.data || [];
 
+  const getCountryFlag = (country: string) => {
+    const flags: Record<string, string> = {
+      'Poland': '🇵🇱', 'United States': '🇺🇸', 'United Kingdom': '🇬🇧',
+      'Germany': '🇩🇪', 'France': '🇫🇷', 'Italy': '🇮🇹', 'Spain': '🇪🇸',
+      'Canada': '🇨🇦', 'Australia': '🇦🇺', 'Brazil': '🇧🇷', 'Argentina': '🇦🇷',
+      'Mexico': '🇲🇽', 'Japan': '🇯🇵', 'China': '🇨🇳', 'Russia': '🇷🇺',
+      'Ukraine': '🇺🇦', 'Netherlands': '🇳🇱', 'Sweden': '🇸🇪', 'Norway': '🇳🇴',
+      'Denmark': '🇩🇰', 'Finland': '🇫🇮', 'Ireland': '🇮🇪', 'Switzerland': '🇨🇭',
+      'Austria': '🇦🇹', 'Belgium': '🇧🇪', 'Portugal': '🇵🇹', 'Greece': '🇬🇷',
+      'Turkey': '🇹🇷', 'Israel': '🇮🇱', 'India': '🇮🇳', 'South Korea': '🇰🇷',
+      'Singapore': '🇸🇬', 'Malaysia': '🇲🇾', 'Indonesia': '🇮🇩', 'Philippines': '🇵🇭',
+      'Vietnam': '🇻🇳', 'Thailand': '🇹🇭', 'Egypt': '🇪🇬', 'South Africa': '🇿🇦',
+      'Nigeria': '🇳🇬', 'Kenya': '🇰🇪', 'Chile': '🇨🇱', 'Colombia': '🇨🇴',
+      'Peru': '🇵🇪', 'Venezuela': '🇻🇪', 'New Zealand': '🇳🇿',
+    };
+    return flags[country] || '🌍';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 p-4">
       <div className="max-w-6xl mx-auto">
@@ -82,21 +100,11 @@ export default function AdminDashboard() {
             <p className="text-slate-400 text-sm mt-1">Statystyki i zarządzanie próbami</p>
           </div>
           <div className="flex gap-2">
-            <Button
-              onClick={() => window.location.href = "/"}
-              variant="outline"
-              className="border-slate-600 text-slate-300 hover:bg-slate-700 gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Wróć
+            <Button onClick={() => window.location.href = "/"} variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700 gap-2">
+              <ArrowLeft className="w-4 h-4" /> Wróć
             </Button>
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              className="border-slate-600 text-slate-300 hover:bg-slate-700 gap-2"
-            >
-              <LogOut className="w-4 h-4" />
-              Wyloguj
+            <Button onClick={handleLogout} variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700 gap-2">
+              <LogOut className="w-4 h-4" /> Wyloguj
             </Button>
           </div>
         </div>
@@ -104,76 +112,28 @@ export default function AdminDashboard() {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Card className="bg-slate-800 border-slate-700">
-            <div className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm font-mono">Razem prób</p>
-                  <p className="text-3xl font-bold text-white font-mono mt-2">{stats.totalAttempts}</p>
-                </div>
-                <BarChart3 className="w-8 h-8 text-blue-400 opacity-50" />
-              </div>
-            </div>
+            <div className="p-6"><div className="flex items-center justify-between"><div><p className="text-slate-400 text-sm font-mono">Razem prób</p><p className="text-3xl font-bold text-white font-mono mt-2">{stats.totalAttempts}</p></div><BarChart3 className="w-8 h-8 text-blue-400 opacity-50" /></div></div>
           </Card>
-
           <Card className="bg-slate-800 border-slate-700">
-            <div className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm font-mono">Unikalne IP</p>
-                  <p className="text-3xl font-bold text-white font-mono mt-2">{stats.uniqueIps}</p>
-                </div>
-                <Users className="w-8 h-8 text-purple-400 opacity-50" />
-              </div>
-            </div>
+            <div className="p-6"><div className="flex items-center justify-between"><div><p className="text-slate-400 text-sm font-mono">Unikalne IP</p><p className="text-3xl font-bold text-white font-mono mt-2">{stats.uniqueIps}</p></div><Users className="w-8 h-8 text-purple-400 opacity-50" /></div></div>
           </Card>
-
           <Card className="bg-slate-800 border-slate-700">
-            <div className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-400 text-sm font-mono">Procent sukcesu</p>
-                  <p className="text-3xl font-bold text-white font-mono mt-2">{successRate}%</p>
-                </div>
-                <CheckCircle2 className="w-8 h-8 text-green-400 opacity-50" />
-              </div>
-            </div>
+            <div className="p-6"><div className="flex items-center justify-between"><div><p className="text-slate-400 text-sm font-mono">Procent sukcesu</p><p className="text-3xl font-bold text-white font-mono mt-2">{successRate}%</p></div><CheckCircle2 className="w-8 h-8 text-green-400 opacity-50" /></div></div>
           </Card>
         </div>
 
         {/* Secondary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card className="bg-slate-800 border-slate-700">
-            <div className="p-6">
-              <p className="text-slate-400 text-sm font-mono">Udane próby</p>
-              <p className="text-2xl font-bold text-green-400 font-mono mt-2">{stats.successfulAttempts}</p>
-            </div>
-          </Card>
-
-          <Card className="bg-slate-800 border-slate-700">
-            <div className="p-6">
-              <p className="text-slate-400 text-sm font-mono">Nieudane próby</p>
-              <p className="text-2xl font-bold text-red-400 font-mono mt-2">{stats.failedAttempts}</p>
-            </div>
-          </Card>
-
-          <Card className="bg-slate-800 border-slate-700">
-            <div className="p-6">
-              <p className="text-slate-400 text-sm font-mono">Aktualnie zablokowane</p>
-              <p className="text-2xl font-bold text-orange-400 font-mono mt-2">{stats.currentlyLockedIps}</p>
-            </div>
-          </Card>
+          <Card className="bg-slate-800 border-slate-700"><div className="p-6"><p className="text-slate-400 text-sm font-mono">Udane próby</p><p className="text-2xl font-bold text-green-400 font-mono mt-2">{stats.successfulAttempts}</p></div></Card>
+          <Card className="bg-slate-800 border-slate-700"><div className="p-6"><p className="text-slate-400 text-sm font-mono">Nieudane próby</p><p className="text-2xl font-bold text-red-400 font-mono mt-2">{stats.failedAttempts}</p></div></Card>
+          <Card className="bg-slate-800 border-slate-700"><div className="p-6"><p className="text-slate-400 text-sm font-mono">Aktualnie zablokowane</p><p className="text-2xl font-bold text-orange-400 font-mono mt-2">{stats.currentlyLockedIps}</p></div></Card>
         </div>
 
-        {/* Locked IPs List */}
+        {/* Locked IPs */}
         <Card className="bg-slate-800 border-slate-700 mb-8">
           <div className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Lock className="w-5 h-5 text-orange-400" />
-              <h2 className="text-xl font-bold text-white font-mono">Zablokowane IP</h2>
-            </div>
-            {lockedIPsQuery.isLoading ? (
-              <p className="text-slate-400 font-mono">Ładowanie...</p>
-            ) : lockedIPs.length > 0 ? (
+            <div className="flex items-center gap-2 mb-4"><Lock className="w-5 h-5 text-orange-400" /><h2 className="text-xl font-bold text-white font-mono">Zablokowane IP</h2></div>
+            {lockedIPsQuery.isLoading ? <p className="text-slate-400 font-mono">Ładowanie...</p> : lockedIPs.length > 0 ? (
               <div className="flex flex-wrap gap-3">
                 {lockedIPs.map((ip) => (
                   <div key={ip} className="bg-slate-700/50 rounded p-3 border border-orange-500 flex items-center gap-3">
@@ -182,16 +142,14 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-slate-400 font-mono">Brak zablokowanych IP</p>
-            )}
+            ) : <p className="text-slate-400 font-mono">Brak zablokowanych IP</p>}
           </div>
         </Card>
 
         {/* Attempts Table */}
         <Card className="bg-slate-800 border-slate-700">
           <div className="p-6">
-            <h2 className="text-xl font-bold text-white font-mono mb-4">Historia prób</h2>
+            <div className="flex items-center gap-2 mb-4"><MapPin className="w-5 h-5 text-cyan-400" /><h2 className="text-xl font-bold text-white font-mono">Historia prób</h2></div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm font-mono">
                 <thead>
@@ -199,60 +157,64 @@ export default function AdminDashboard() {
                     <th className="text-left py-2 px-3 text-slate-400">IP</th>
                     <th className="text-left py-2 px-3 text-slate-400">Kąt</th>
                     <th className="text-left py-2 px-3 text-slate-400">Status</th>
+                    <th className="text-left py-2 px-3 text-slate-400">🌍 Lokalizacja</th>
                     <th className="text-left py-2 px-3 text-slate-400">Czas</th>
                     <th className="text-left py-2 px-3 text-slate-400">Akcja</th>
                   </tr>
                 </thead>
                 <tbody>
                   {attempts.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="text-center py-8 text-slate-500">
-                        Brak danych
-                      </td>
-                    </tr>
+                    <tr><td colSpan={6} className="text-center py-8 text-slate-500">Brak danych</td></tr>
                   ) : (
                     attempts.map((attempt: any, idx: number) => {
                       const isLocked = lockedIPs.includes(attempt.ipAddress);
                       return (
-                        <tr 
-                          key={idx} 
-                          className={`border-b border-slate-700 hover:bg-slate-700/50 ${
-                            isLocked ? 'bg-red-900/30 border-l-4 border-l-red-500' : ''
-                          }`}
-                        >
-                          <td className="py-3 px-3 text-slate-300">
-                            {isLocked ? (
-                              <span className="text-red-400 font-bold flex items-center gap-1">
-                                🔒 {attempt.ipAddress}
-                              </span>
-                            ) : (
-                              attempt.ipAddress
-                            )}
+                        <tr key={idx} className={`border-b border-slate-700 hover:bg-slate-700/50 transition-colors ${isLocked ? 'bg-red-900/20 border-red-700/50' : ''}`}>
+                          <td className={`py-3 px-3 font-mono ${isLocked ? 'text-red-400 font-bold' : 'text-slate-300'}`}>
+                            {attempt.ipAddress}
+                            {isLocked && <span className="ml-2 text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full border border-red-500/30">ZABLOKOWANE</span>}
                           </td>
                           <td className="py-3 px-3 text-slate-300">{attempt.angle}°</td>
                           <td className="py-3 px-3">
                             {attempt.isCorrect === 1 ? (
-                              <span className="text-green-400 flex items-center gap-1">
-                                <CheckCircle2 className="w-4 h-4" /> OK
-                              </span>
+                              <span className="text-green-400 flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> OK</span>
                             ) : (
-                              <span className="text-red-400 flex items-center gap-1">
-                                <XCircle className="w-4 h-4" /> FAIL
-                              </span>
+                              <span className="text-red-400 flex items-center gap-1"><XCircle className="w-4 h-4" /> FAIL</span>
                             )}
                           </td>
-                          <td className="py-3 px-3 text-slate-400">
-                            {attempt.createdAt ? new Date(attempt.createdAt).toLocaleString("pl-PL", { 
-                              day: '2-digit', 
-                              month: '2-digit', 
-                              year: 'numeric', 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            }) : "Brak daty"}
+
+                          {/* 🌍 Lokalizacja z TOOLTIPEM */}
+                          <td className="py-3 px-3 text-slate-300 group relative">
+                            {attempt.country || attempt.city ? (
+                              <span className="flex items-center gap-1.5 cursor-help border-b border-dotted border-slate-500">
+                                <span>{getCountryFlag(attempt.country)}</span>
+                                <span>{attempt.country || 'Unknown'}</span>
+                                {attempt.city && (
+                                  <span className="text-slate-400 text-xs">({attempt.city})</span>
+                                )}
+                                <Info className="w-3 h-3 text-slate-500" />
+                                {/* Tooltip */}
+                                <div className="absolute left-0 top-full mt-1 hidden group-hover:block z-50 bg-slate-800 border border-slate-600 rounded p-2 text-xs text-slate-200 whitespace-nowrap shadow-xl max-w-xs">
+                                  {attempt.country && <div>🌍 {attempt.country}</div>}
+                                  {attempt.city && <div>🏙️ {attempt.city}</div>}
+                                  {attempt.isp && <div>📡 {attempt.isp}</div>}
+                                  {attempt.latitude && attempt.longitude && (
+                                    <div>📍 {parseFloat(attempt.latitude).toFixed(4)}, {parseFloat(attempt.longitude).toFixed(4)}</div>
+                                  )}
+                                  {attempt.browserFamily && <div>🌐 {attempt.browserFamily}</div>}
+                                  {attempt.osFamily && <div>💻 {attempt.osFamily}</div>}
+                                  {attempt.deviceType && <div>📱 {attempt.deviceType}</div>}
+                                </div>
+                              </span>
+                            ) : (
+                              <span className="text-slate-500">Unknown</span>
+                            )}
                           </td>
-                          <td className="py-3 px-3">
-                            <UnlockButton ipAddress={attempt.ipAddress} />
+
+                          <td className="py-3 px-3 text-slate-400 text-xs whitespace-nowrap">
+                            {attempt.createdAt ? new Date(attempt.createdAt).toLocaleString("pl-PL", { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : "Brak daty"}
                           </td>
+                          <td className="py-3 px-3"><UnlockButton ipAddress={attempt.ipAddress} /></td>
                         </tr>
                       );
                     })
@@ -263,23 +225,9 @@ export default function AdminDashboard() {
 
             {/* Pagination */}
             <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-700">
-              <Button
-                onClick={() => setPage(Math.max(0, page - 1))}
-                disabled={page === 0}
-                variant="outline"
-                className="border-slate-600 text-slate-300"
-              >
-                Poprzednia
-              </Button>
+              <Button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} variant="outline" className="border-slate-600 text-slate-300">Poprzednia</Button>
               <span className="text-slate-400 font-mono">Strona {page + 1}</span>
-              <Button
-                onClick={() => setPage(page + 1)}
-                disabled={attempts.length < pageSize}
-                variant="outline"
-                className="border-slate-600 text-slate-300"
-              >
-                Następna
-              </Button>
+              <Button onClick={() => setPage(page + 1)} disabled={attempts.length < pageSize} variant="outline" className="border-slate-600 text-slate-300">Następna</Button>
             </div>
           </div>
         </Card>
