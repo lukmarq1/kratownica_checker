@@ -5,6 +5,7 @@ import { parseUserAgent } from "./userAgentParser";
 
 /**
  * Fetch geolocation data from IP address using ip-api.com
+ * 🔥 ROZSZERZONA WERSJA – pobiera org, as, timezone, zip
  */
 export async function fetchGeolocation(ip: string) {
   try {
@@ -16,13 +17,18 @@ export async function fetchGeolocation(ip: string) {
         latitude: null,
         longitude: null,
         isp: "Local Network",
+        org: "Local",
+        as: "Local",
+        timezone: "Local",
+        zip: "00-000",
       };
     }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    const response = await fetch(`http://ip-api.com/json/${ip}?fields=country,city,lat,lon,isp,status`, {
+    // 🔥 Pobieramy WSZYSTKIE pola
+    const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,city,lat,lon,isp,org,as,timezone,zip`, {
       signal: controller.signal,
     });
 
@@ -46,6 +52,10 @@ export async function fetchGeolocation(ip: string) {
       latitude: data.lat || null,
       longitude: data.lon || null,
       isp: data.isp || "Unknown",
+      org: data.org || "Unknown",
+      as: data.as || "Unknown",
+      timezone: data.timezone || "Unknown",
+      zip: data.zip || "Unknown",
     };
   } catch (error) {
     console.error(`[Geolocation] Error fetching for IP ${ip}:`, error);
@@ -207,6 +217,7 @@ export async function getUserProfileWithTracking(ipAddress: string) {
 
 /**
  * Export all attempt data as CSV
+ * 🔥 ROZSZERZONY o org, as, timezone, zip
  */
 export async function exportAttemptDataAsCSV() {
   const db = await getDb();
@@ -230,6 +241,10 @@ export async function exportAttemptDataAsCSV() {
       "Country",
       "City",
       "ISP",
+      "Org",
+      "AS",
+      "Timezone",
+      "Zip",
       "Latitude",
       "Longitude",
       "User Agent",
@@ -247,6 +262,10 @@ export async function exportAttemptDataAsCSV() {
       a.country || "unknown",
       a.city || "unknown",
       a.isp || "unknown",
+      a.org || "unknown",
+      a.as || "unknown",
+      a.timezone || "unknown",
+      a.zip || "unknown",
       a.latitude || "",
       a.longitude || "",
       `"${(a.userAgent || "").replace(/"/g, '""')}"`,
