@@ -254,13 +254,25 @@ export async function unlockIp(ipAddress: string): Promise<void> {
 
 /**
  * Record an attempt in history for admin tracking.
+ * 🔥 ROZSZERZONA WERSJA – zapisuje wszystkie dane geolokalizacyjne
  */
 export async function recordAttemptHistory(
   ipAddress: string,
   angle: number,
   isCorrect: boolean,
   attemptNumber: number,
-  userAgent?: string
+  userAgent?: string,
+  geoData?: {
+    country?: string;
+    city?: string;
+    latitude?: string;
+    longitude?: string;
+    isp?: string;
+    org?: string;
+    as?: string;
+    timezone?: string;
+    zip?: string;
+  }
 ): Promise<void> {
   const db = await getDb();
   if (!db) {
@@ -275,6 +287,15 @@ export async function recordAttemptHistory(
       isCorrect: isCorrect ? 1 : 0,
       attemptNumber,
       userAgent: userAgent || "unknown",
+      country: geoData?.country || null,
+      city: geoData?.city || null,
+      latitude: geoData?.latitude || null,
+      longitude: geoData?.longitude || null,
+      isp: geoData?.isp || null,
+      org: geoData?.org || null,
+      as: geoData?.as || null,
+      timezone: geoData?.timezone || null,
+      zip: geoData?.zip || null,
     });
   } catch (error) {
     console.error("[recordAttemptHistory] Error recording attempt:", error);
