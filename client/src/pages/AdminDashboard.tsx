@@ -183,7 +183,7 @@ export default function AdminDashboard() {
                             )}
                           </td>
 
-                          {/* 🌍 Lokalizacja z TOOLTIPEM */}
+                          {/* 🌍 Lokalizacja z ROZBUDOWANYM TOOLTIPEM */}
                           <td className="py-3 px-3 text-slate-300 group relative">
                             {attempt.country || attempt.city ? (
                               <span className="flex items-center gap-1.5 cursor-help border-b border-dotted border-slate-500">
@@ -193,17 +193,36 @@ export default function AdminDashboard() {
                                   <span className="text-slate-400 text-xs">({attempt.city})</span>
                                 )}
                                 <Info className="w-3 h-3 text-slate-500" />
-                                {/* Tooltip */}
-                                <div className="absolute left-0 top-full mt-1 hidden group-hover:block z-50 bg-slate-800 border border-slate-600 rounded p-2 text-xs text-slate-200 whitespace-nowrap shadow-xl max-w-xs">
+                                {/* 🔥 ROZSZERZONY TOOLTIP – wszystkie dane geolokalizacyjne */}
+                                <div className="absolute left-0 top-full mt-1 hidden group-hover:block z-50 bg-slate-800 border border-slate-600 rounded p-3 text-xs text-slate-200 shadow-xl min-w-[200px]">
+                                  <div className="font-bold text-slate-300 border-b border-slate-600 pb-1 mb-1">📍 Dane lokalizacji</div>
                                   {attempt.country && <div>🌍 {attempt.country}</div>}
                                   {attempt.city && <div>🏙️ {attempt.city}</div>}
-                                  {attempt.isp && <div>📡 {attempt.isp}</div>}
+                                  {attempt.zip && <div>📮 {attempt.zip}</div>}
+                                  {attempt.timezone && <div>🕐 {attempt.timezone}</div>}
+                                  {attempt.isp && <div>📡 ISP: {attempt.isp}</div>}
+                                  {attempt.org && <div>🏢 Org: {attempt.org}</div>}
+                                  {attempt.as && <div>🔢 AS: {attempt.as}</div>}
                                   {attempt.latitude && attempt.longitude && (
                                     <div>📍 {parseFloat(attempt.latitude).toFixed(4)}, {parseFloat(attempt.longitude).toFixed(4)}</div>
                                   )}
-                                  {attempt.browserFamily && <div>🌐 {attempt.browserFamily}</div>}
-                                  {attempt.osFamily && <div>💻 {attempt.osFamily}</div>}
-                                  {attempt.deviceType && <div>📱 {attempt.deviceType}</div>}
+                                  <div className="border-t border-slate-600 mt-1 pt-1 text-slate-400 text-[10px]">
+                                    {attempt.browserFamily && <div>🌐 {attempt.browserFamily}</div>}
+                                    {attempt.osFamily && <div>💻 {attempt.osFamily}</div>}
+                                    {attempt.deviceType && <div>📱 {attempt.deviceType}</div>}
+                                  </div>
+                                  {attempt.latitude && attempt.longitude && (
+                                    <div className="mt-1">
+                                      <a 
+                                        href={`https://www.openstreetmap.org/?mlat=${attempt.latitude}&mlon=${attempt.longitude}&zoom=14`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-cyan-400 hover:text-cyan-300 underline text-[10px]"
+                                      >
+                                        🗺️ Zobacz na mapie
+                                      </a>
+                                    </div>
+                                  )}
                                 </div>
                               </span>
                             ) : (
