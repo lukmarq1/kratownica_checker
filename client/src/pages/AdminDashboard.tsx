@@ -187,15 +187,15 @@ export default function AdminDashboard() {
                         <td className="py-3 px-3 text-slate-300">{attempt.ipAddress}</td>
                         <td className="py-3 px-3 text-slate-300">{attempt.angle}°</td>
                         <td className="py-3 px-3">
-                          {attempt.isSuccessful ? (
-                            <span className="text-green-400 flex items-center gap-1">
-                              <CheckCircle2 className="w-4 h-4" /> OK
-                            </span>
-                          ) : (
-                            <span className="text-red-400 flex items-center gap-1">
-                              <XCircle className="w-4 h-4" /> FAIL
-                            </span>
-                          )}
+                          {attempt.isCorrect === 1 ? (
+  <span className="text-green-400 flex items-center gap-1">
+    <CheckCircle2 className="w-4 h-4" /> OK
+  </span>
+) : (
+  <span className="text-red-400 flex items-center gap-1">
+    <XCircle className="w-4 h-4" /> FAIL
+  </span>
+)}
                         </td>
                         <td className="py-3 px-3 text-slate-400">
                           {attempt.createdAt ? new Date(attempt.createdAt).toLocaleString("pl-PL", { 
