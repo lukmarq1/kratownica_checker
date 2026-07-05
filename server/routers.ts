@@ -4,6 +4,7 @@ import { ENV } from "./_core/env";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
 import {
   getOrCreateAttemptRecord,
   isIpLocked,
@@ -14,6 +15,7 @@ import {
   getAllAttempts,
   getAdminStats,
   unlockIp,
+  getDb,
 } from "./db";
 import {
   recordAttemptWithTracking,
@@ -23,7 +25,6 @@ import {
 } from "./dbEnhanced";
 
 export const appRouter = router({
-  // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
@@ -37,11 +38,7 @@ export const appRouter = router({
   }),
 
   angle: router({
-    /**
-     * Check the current status of an IP (attempts, lockout, etc.)
-     */
     status: publicProcedure.query(async ({ ctx }) => {
-      // Extract client IP safely, preferring x-forwarded-for for proxied requests
       const xForwardedFor = ctx.req.headers["x-forwarded-for"];
       let ipAddress = "unknown";
       if (xForwardedFor) {
@@ -64,14 +61,9 @@ export const appRouter = router({
       };
     }),
 
-    /**
-     * Submit an angle for verification.
-     * Returns success/failure with appropriate messages and lockout info.
-     */
     verify: publicProcedure
       .input(z.object({ angle: z.number().min(0).max(360) }))
       .mutation(async ({ input, ctx }) => {
-        // Extract client IP safely
         const xForwardedFor = ctx.req.headers["x-forwarded-for"];
         let ipAddress = "unknown";
         if (xForwardedFor) {
@@ -88,7 +80,6 @@ export const appRouter = router({
           ipAddress = `fallback-${Buffer.from(userAgent + acceptLanguage).toString("base64").slice(0, 16)}`;
         }
 
-        // Check if already locked
         const isLockedNow = await isIpLocked(ipAddress);
         if (isLockedNow) {
           const remainingMs = await getRemainingLockoutTime(ipAddress);
@@ -99,7 +90,6 @@ export const appRouter = router({
           };
         }
 
-        // Verify angle (65° ± 0.5°)
         const correctAngle = 65;
         const tolerance = 0.5;
         const isCorrect =
@@ -107,7 +97,6 @@ export const appRouter = router({
           input.angle <= correctAngle + tolerance;
 
         if (isCorrect) {
-          // Success: reset attempts and record history
           await resetAttempts(ipAddress);
           const record = await getOrCreateAttemptRecord(ipAddress);
           const userAgent = ctx.req.headers["user-agent"] || "unknown";
@@ -119,7 +108,6 @@ export const appRouter = router({
             angle: input.angle,
           };
         } else {
-          // Failed attempt: record and check for lockout
           const record = await getOrCreateAttemptRecord(ipAddress);
           const result = await recordFailedAttempt(ipAddress);
           const userAgent = ctx.req.headers["user-agent"] || "unknown";
@@ -140,41 +128,26 @@ export const appRouter = router({
   }),
 
   admin: router({
-    /**
-     * Get all attempts for admin dashboard (owner only)
-     */
     getAttempts: publicProcedure
       .input(z.object({ limit: z.number().default(100), offset: z.number().default(0) }))
       .query(async ({ input }) => {
         return await getAllAttempts(input.limit, input.offset);
       }),
 
-    /**
-     * Get admin statistics (owner only)
-     */
     getStats: publicProcedure.query(async () => {
       return await getAdminStats();
     }),
 
-    /**
-     * Get advanced analytics with geolocation and device tracking
-     */
     getAdvancedAnalytics: publicProcedure.query(async () => {
       return await getAdvancedAnalytics();
     }),
 
-    /**
-     * Get detailed user profile by IP
-     */
     getUserProfile: publicProcedure
       .input(z.object({ ipAddress: z.string() }))
       .query(async ({ input }) => {
         return await getUserProfileWithTracking(input.ipAddress);
       }),
 
-    /**
-     * Export all attempt data as CSV
-     */
     exportData: publicProcedure.query(async () => {
       return await exportAttemptDataAsCSV();
     }),
@@ -186,9 +159,6 @@ export const appRouter = router({
         return { success: true, ipAddress: input.ipAddress };
       }),
 
-    /**
-     * Verify admin PIN
-     */
     verifyPin: publicProcedure
       .input(z.object({ pin: z.string() }))
       .mutation(async ({ input }) => {
@@ -199,6 +169,16 @@ export const appRouter = router({
         const isValid = input.pin === adminPin;
         return { success: isValid };
       }),
+
+    getLockedIPs: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      const locked = await db
+        .select()
+        .from(angleAttempts)
+        .where(sql`${angleAttempts.lockedUntil} > NOW()`);
+      return locked.map((r) => r.ipAddress);
+    }),
   }),
 });
 
