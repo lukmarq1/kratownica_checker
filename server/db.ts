@@ -230,7 +230,7 @@ export async function unlockIp(ipAddress: string): Promise<void> {
 }
 
 /**
- * 🔥 ROZSZERZONA WERSJA – zapisuje wszystkie dane geolokalizacyjne
+ * 🔥 ROZSZERZONA WERSJA – zapisuje wszystkie dane geolokalizacyjne + User-Agent
  */
 export async function recordAttemptHistory(
   ipAddress: string,
@@ -248,6 +248,11 @@ export async function recordAttemptHistory(
     as?: string;
     timezone?: string;
     zip?: string;
+  },
+  parsedUA?: {
+    browserFamily?: string;
+    osFamily?: string;
+    deviceType?: string;
   }
 ): Promise<void> {
   const db = await getDb();
@@ -255,6 +260,9 @@ export async function recordAttemptHistory(
     console.warn("[recordAttemptHistory] Database not available");
     return;
   }
+
+  console.log("[DB] recordAttemptHistory received geoData:", JSON.stringify(geoData));
+  console.log("[DB] recordAttemptHistory received parsedUA:", JSON.stringify(parsedUA));
 
   try {
     await db.insert(attemptHistory).values({
@@ -272,6 +280,10 @@ export async function recordAttemptHistory(
       as: geoData?.as || null,
       timezone: geoData?.timezone || null,
       zip: geoData?.zip || null,
+      // 🔥 DANE Z USER-AGENT
+      browserFamily: parsedUA?.browserFamily || null,
+      osFamily: parsedUA?.osFamily || null,
+      deviceType: parsedUA?.deviceType || null,
     });
   } catch (error) {
     console.error("[recordAttemptHistory] Error recording attempt:", error);
