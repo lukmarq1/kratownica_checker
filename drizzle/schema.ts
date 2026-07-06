@@ -2,8 +2,6 @@ import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-or
 
 /**
  * Core user table backing auth flow.
- * Extend this file with additional tables as your product grows.
- * Columns use camelCase to match both database fields and generated types.
  */
 export const ipBlacklist = mysqlTable("ip_blacklist", {
   id: int("id").autoincrement().primaryKey(),
@@ -17,12 +15,7 @@ export type IpBlacklist = typeof ipBlacklist.$inferSelect;
 export type InsertIpBlacklist = typeof ipBlacklist.$inferInsert;
 
 export const users = mysqlTable("users", {
-  /**
-   * Surrogate primary key. Auto-incremented numeric value managed by the database.
-   * Use this for relations between tables.
-   */
   id: int("id").autoincrement().primaryKey(),
-  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
@@ -36,10 +29,6 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-/**
- * IP-based attempt tracking for angle verification.
- * Stores failed attempts and lockout timestamps per IP address.
- */
 export const angleAttempts = mysqlTable("angle_attempts", {
   id: int("id").autoincrement().primaryKey(),
   ipAddress: varchar("ipAddress", { length: 45 }).notNull().unique(),
@@ -55,8 +44,7 @@ export type AngleAttempt = typeof angleAttempts.$inferSelect;
 export type InsertAngleAttempt = typeof angleAttempts.$inferInsert;
 
 /**
- * Detailed history of all angle verification attempts.
- * Used for admin dashboard to track all submissions.
+ * 🔥 ROZSZERZONA TABELA – zawiera wszystkie pola geolokalizacyjne
  */
 export const attemptHistory = mysqlTable("attempt_history", {
   id: int("id").autoincrement().primaryKey(),
@@ -70,6 +58,11 @@ export const attemptHistory = mysqlTable("attempt_history", {
   latitude: varchar("latitude", { length: 20 }),
   longitude: varchar("longitude", { length: 20 }),
   isp: varchar("isp", { length: 100 }),
+  // 🔥 NOWE POLA – geolokalizacja szczegółowa
+  org: varchar("org", { length: 100 }),
+  as: varchar("as", { length: 100 }),
+  timezone: varchar("timezone", { length: 50 }),
+  zip: varchar("zip", { length: 20 }),
   browserFamily: varchar("browserFamily", { length: 50 }),
   osFamily: varchar("osFamily", { length: 50 }),
   deviceType: varchar("deviceType", { length: 50 }),
@@ -79,10 +72,6 @@ export const attemptHistory = mysqlTable("attempt_history", {
 export type AttemptHistory = typeof attemptHistory.$inferSelect;
 export type InsertAttemptHistory = typeof attemptHistory.$inferInsert;
 
-/**
- * Advanced user profile tracking for repeat offender identification.
- * Stores aggregated stats and device fingerprinting per IP.
- */
 export const userDeviceProfiles = mysqlTable("user_device_profiles", {
   id: int("id").autoincrement().primaryKey(),
   ipAddress: varchar("ipAddress", { length: 45 }).notNull().unique(),
