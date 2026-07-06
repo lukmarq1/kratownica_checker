@@ -5,7 +5,6 @@ import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -89,9 +88,6 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-/**
- * Get or create an IP attempt record.
- */
 export async function getOrCreateAttemptRecord(ipAddress: string) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -106,7 +102,6 @@ export async function getOrCreateAttemptRecord(ipAddress: string) {
     return existing[0];
   }
 
-  // Create new record
   await db.insert(angleAttempts).values({
     ipAddress,
     failedAttempts: 0,
@@ -121,9 +116,6 @@ export async function getOrCreateAttemptRecord(ipAddress: string) {
   return created[0];
 }
 
-/**
- * Check if IP is currently locked out.
- */
 export async function isIpLocked(ipAddress: string): Promise<boolean> {
   const db = await getDb();
   if (!db) return false;
@@ -139,10 +131,8 @@ export async function isIpLocked(ipAddress: string): Promise<boolean> {
   const attempt = record[0];
   if (!attempt.lockedUntil) return false;
 
-  // Check if lockout has expired
   const now = new Date();
   if (now > attempt.lockedUntil) {
-    // Unlock by clearing the lockout
     await db
       .update(angleAttempts)
       .set({ lockedUntil: null, failedAttempts: 0 })
@@ -153,9 +143,6 @@ export async function isIpLocked(ipAddress: string): Promise<boolean> {
   return true;
 }
 
-/**
- * Get remaining lockout time in milliseconds.
- */
 export async function getRemainingLockoutTime(ipAddress: string): Promise<number> {
   const db = await getDb();
   if (!db) return 0;
@@ -173,9 +160,6 @@ export async function getRemainingLockoutTime(ipAddress: string): Promise<number
   return Math.max(0, remaining);
 }
 
-/**
- * Record a failed attempt and check if lockout should be triggered.
- */
 export async function recordFailedAttempt(ipAddress: string): Promise<{
   isLocked: boolean;
   remainingAttempts: number;
@@ -189,7 +173,6 @@ export async function recordFailedAttempt(ipAddress: string): Promise<{
 
   let lockedUntil: Date | null = null;
   if (newFailedCount >= 2) {
-    // Lock for 24 hours
     lockedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
   }
 
@@ -209,9 +192,6 @@ export async function recordFailedAttempt(ipAddress: string): Promise<{
   };
 }
 
-/**
- * Reset attempts for an IP (on successful verification).
- */
 export async function resetAttempts(ipAddress: string): Promise<void> {
   const db = await getDb();
   if (!db) return;
@@ -226,9 +206,6 @@ export async function resetAttempts(ipAddress: string): Promise<void> {
     .where(eq(angleAttempts.ipAddress, ipAddress));
 }
 
-/**
- * Manually unlock an IP address (admin only).
- */
 export async function unlockIp(ipAddress: string): Promise<void> {
   const db = await getDb();
   if (!db) {
@@ -253,7 +230,6 @@ export async function unlockIp(ipAddress: string): Promise<void> {
 }
 
 /**
- * Record an attempt in history for admin tracking.
  * 🔥 ROZSZERZONA WERSJA – zapisuje wszystkie dane geolokalizacyjne
  */
 export async function recordAttemptHistory(
@@ -302,9 +278,6 @@ export async function recordAttemptHistory(
   }
 }
 
-/**
- * Get all attempts for admin dashboard.
- */
 export async function getAllAttempts(limit: number = 100, offset: number = 0) {
   const db = await getDb();
   if (!db) return [];
@@ -317,9 +290,6 @@ export async function getAllAttempts(limit: number = 100, offset: number = 0) {
     .offset(offset);
 }
 
-/**
- * Get admin statistics.
- */
 export async function getAdminStats() {
   const db = await getDb();
   if (!db) return null;
