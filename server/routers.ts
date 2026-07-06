@@ -25,7 +25,6 @@ import {
   fetchGeolocation,
 } from "./dbEnhanced";
 import { angleAttempts } from "../drizzle/schema";
-// 🔥 IMPORT funkcji do parsowania User-Agent
 import { parseUserAgent } from "./userAgentParser";
 
 export const appRouter = router({
@@ -66,7 +65,10 @@ export const appRouter = router({
     }),
 
     verify: publicProcedure
-      .input(z.object({ angle: z.number().min(0).max(360) }))
+      .input(z.object({
+        angle: z.number().min(0).max(360),
+        browser: z.string().optional(), // 🔥 DODANE – z frontendu
+      }))
       .mutation(async ({ input, ctx }) => {
         const xForwardedFor = ctx.req.headers["x-forwarded-for"];
         let ipAddress = "unknown";
@@ -111,9 +113,15 @@ export const appRouter = router({
           }
         }
 
-        // 🔥 Pobieramy i parsujemy User-Agent
+        // 🔥 Parsujemy User-Agent
         const userAgent = ctx.req.headers["user-agent"] || "unknown";
         const parsedUA = parseUserAgent(userAgent);
+
+        // 🔥 Jeśli przysłano z frontendu – NADPISUJEMY
+        if (input.browser) {
+          parsedUA.browserFamily = input.browser;
+          console.log("[Browser] Override z frontendu:", input.browser);
+        }
         console.log("[UserAgent] Parsed:", JSON.stringify(parsedUA));
 
         const record = await getOrCreateAttemptRecord(ipAddress);
