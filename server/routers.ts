@@ -25,6 +25,8 @@ import {
   fetchGeolocation,
 } from "./dbEnhanced";
 import { angleAttempts } from "../drizzle/schema";
+// 🔥 IMPORT funkcji do parsowania User-Agent
+import { parseUserAgent } from "./userAgentParser";
 
 export const appRouter = router({
   system: systemRouter,
@@ -109,7 +111,11 @@ export const appRouter = router({
           }
         }
 
+        // 🔥 Pobieramy i parsujemy User-Agent
         const userAgent = ctx.req.headers["user-agent"] || "unknown";
+        const parsedUA = parseUserAgent(userAgent);
+        console.log("[UserAgent] Parsed:", JSON.stringify(parsedUA));
+
         const record = await getOrCreateAttemptRecord(ipAddress);
         const attemptNumber = (record.failedAttempts || 0) + 1;
 
@@ -121,7 +127,8 @@ export const appRouter = router({
             true,
             attemptNumber,
             userAgent,
-            geoData || undefined
+            geoData || undefined,
+            parsedUA
           );
           await recordAttemptWithTracking(ipAddress, input.angle, true, attemptNumber, userAgent).catch(err =>
             console.error("[Tracking] Error:", err)
@@ -139,7 +146,8 @@ export const appRouter = router({
             false,
             attemptNumber,
             userAgent,
-            geoData || undefined
+            geoData || undefined,
+            parsedUA
           );
           await recordAttemptWithTracking(ipAddress, input.angle, false, attemptNumber, userAgent).catch(err =>
             console.error("[Tracking] Error:", err)
