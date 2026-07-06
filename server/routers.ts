@@ -22,10 +22,9 @@ import {
   getAdvancedAnalytics,
   getUserProfileWithTracking,
   exportAttemptDataAsCSV,
+  fetchGeolocation,
 } from "./dbEnhanced";
 import { angleAttempts } from "../drizzle/schema";
-// 🔥 Import funkcji do pobierania geolokalizacji
-import { fetchGeolocation } from "./dbEnhanced";
 
 export const appRouter = router({
   system: systemRouter,
@@ -104,6 +103,7 @@ export const appRouter = router({
         if (ipAddress && ipAddress !== "unknown") {
           try {
             geoData = await fetchGeolocation(ipAddress);
+            console.log("[Geolocation] Data fetched:", JSON.stringify(geoData));
           } catch (e) {
             console.error("[Geolocation] Error fetching geo data:", e);
           }
@@ -133,6 +133,7 @@ export const appRouter = router({
           };
         } else {
           const result = await recordFailedAttempt(ipAddress);
+          // 🔥 POPRAWKA: przekazujemy geoData również dla nieudanych prób!
           await recordAttemptHistory(
             ipAddress,
             input.angle,
