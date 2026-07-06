@@ -5,7 +5,7 @@ import { parseUserAgent } from "./userAgentParser";
 
 /**
  * Fetch geolocation data from IP address using ip-api.com
- * 🔥 ROZSZERZONA WERSJA – pobiera org, as, timezone, zip
+ * 🔥 Używamy prostego URL bez parametrów fields – działa zawsze!
  */
 export async function fetchGeolocation(ip: string) {
   try {
@@ -27,8 +27,8 @@ export async function fetchGeolocation(ip: string) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    // 🔥 Pobieramy WSZYSTKIE pola
-    const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,city,lat,lon,isp,org,as,timezone,zip`, {
+    // 🔥 PROSTY URL – bez parametrów fields
+    const response = await fetch(`http://ip-api.com/json/${ip}`, {
       signal: controller.signal,
     });
 
@@ -49,8 +49,8 @@ export async function fetchGeolocation(ip: string) {
     return {
       country: data.country || "Unknown",
       city: data.city || "Unknown",
-      latitude: data.lat || null,
-      longitude: data.lon || null,
+      latitude: data.lat ? String(data.lat) : null,
+      longitude: data.lon ? String(data.lon) : null,
       isp: data.isp || "Unknown",
       org: data.org || "Unknown",
       as: data.as || "Unknown",
@@ -79,26 +79,22 @@ export async function getAdvancedAnalytics() {
   if (!db) return null;
 
   try {
-    // Total attempts
     const totalResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(attemptHistory);
     const totalAttempts = totalResult[0]?.count || 0;
 
-    // Successful attempts
     const successResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(attemptHistory)
       .where(sql`${attemptHistory.isCorrect} = 1`);
     const successfulAttempts = successResult[0]?.count || 0;
 
-    // Unique IPs
     const uniqueIpsResult = await db
       .select({ count: sql<number>`count(distinct ${attemptHistory.ipAddress})` })
       .from(attemptHistory);
     const uniqueIps = uniqueIpsResult[0]?.count || 0;
 
-    // Geographic distribution
     const geoResult = await db
       .select({
         country: attemptHistory.country,
@@ -109,7 +105,6 @@ export async function getAdvancedAnalytics() {
       .orderBy(desc(sql`count(*)`))
       .limit(10);
 
-    // Device distribution
     const deviceResult = await db
       .select({
         deviceType: attemptHistory.deviceType,
@@ -119,7 +114,6 @@ export async function getAdvancedAnalytics() {
       .groupBy(attemptHistory.deviceType)
       .orderBy(desc(sql`count(*)`));
 
-    // Browser distribution
     const browserResult = await db
       .select({
         browserFamily: attemptHistory.browserFamily,
@@ -130,7 +124,6 @@ export async function getAdvancedAnalytics() {
       .orderBy(desc(sql`count(*)`))
       .limit(5);
 
-    // Repeat offenders
     const offendersResult = await db
       .select()
       .from(userDeviceProfiles)
@@ -138,7 +131,6 @@ export async function getAdvancedAnalytics() {
       .orderBy(desc(userDeviceProfiles.failedAttempts))
       .limit(20);
 
-    // Success rate by country
     const countryStatsResult = await db
       .select({
         country: attemptHistory.country,
@@ -168,9 +160,6 @@ export async function getAdvancedAnalytics() {
   }
 }
 
-/**
- * Get user profile with all tracking data
- */
 export async function getUserProfileWithTracking(ipAddress: string) {
   const db = await getDb();
   if (!db) return null;
@@ -186,14 +175,12 @@ export async function getUserProfileWithTracking(ipAddress: string) {
 
     const p = profile[0];
 
-    // Get all attempts for this IP
     const attempts = await db
       .select()
       .from(attemptHistory)
       .where(eq(attemptHistory.ipAddress, ipAddress))
       .orderBy(desc(attemptHistory.createdAt));
 
-    // Parse user agents
     let userAgents: string[] = [];
     if (p.userAgents) {
       try {
@@ -229,7 +216,6 @@ export async function exportAttemptDataAsCSV() {
       .from(attemptHistory)
       .orderBy(desc(attemptHistory.createdAt));
 
-    // Build CSV
     const headers = [
       "IP Address",
       "Angle",
