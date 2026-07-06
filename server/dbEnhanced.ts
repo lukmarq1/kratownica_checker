@@ -1,11 +1,10 @@
 import { eq, desc, sql } from "drizzle-orm";
 import { getDb } from "./db";
 import { attemptHistory, userDeviceProfiles, angleAttempts } from "../drizzle/schema";
-import { parseUserAgent } from "./userAgentParser";
 
 /**
  * Fetch geolocation data from IP address using ip-api.com
- * 🔥 Używamy prostego URL bez parametrów fields – działa zawsze!
+ * 🔥 ROZSZERZONA WERSJA – pobiera org, as, timezone, zip
  */
 export async function fetchGeolocation(ip: string) {
   try {

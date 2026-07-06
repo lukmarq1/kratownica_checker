@@ -113,8 +113,6 @@ export const appRouter = router({
         const record = await getOrCreateAttemptRecord(ipAddress);
         const attemptNumber = (record.failedAttempts || 0) + 1;
 
-        console.log("[DEBUG] geoData przed zapisem:", JSON.stringify(geoData));
-
         if (isCorrect) {
           await resetAttempts(ipAddress);
           await recordAttemptHistory(
