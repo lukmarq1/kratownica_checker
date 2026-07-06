@@ -84,7 +84,6 @@ export async function getUserByOpenId(openId: string) {
   }
 
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-
   return result.length > 0 ? result[0] : undefined;
 }
 
@@ -229,9 +228,6 @@ export async function unlockIp(ipAddress: string): Promise<void> {
   }
 }
 
-/**
- * 🔥 ROZSZERZONA WERSJA – zapisuje wszystkie dane geolokalizacyjne
- */
 export async function recordAttemptHistory(
   ipAddress: string,
   angle: number,
@@ -255,6 +251,8 @@ export async function recordAttemptHistory(
     console.warn("[recordAttemptHistory] Database not available");
     return;
   }
+
+  console.log("[DB] recordAttemptHistory otrzymał geoData:", JSON.stringify(geoData));
 
   try {
     await db.insert(attemptHistory).values({
